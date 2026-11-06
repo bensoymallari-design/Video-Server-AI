@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(226, 162, 58, 0.08), transparent 50%),
+    #090b0d;
+  color: #e7eef3;
+}
+
+* {
+  scrollbar-color: #2a333c transparent;
+}
+
+button,
+a,
+input,
+textarea {
+  outline-color: #e2a23a;
+}
+
+::selection {
+  background: rgba(226, 162, 58, 0.35);
+}
