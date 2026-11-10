@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The Windows startup script searches for a real Python 3.11+ install and stops with install instructions when only the Microsoft Store alias is present.
+
 ## 0.1.0 — Phase 1 foundation
 
 - Added the FastAPI service with SQLite, local sessions, roles, health checks, and an audit log.

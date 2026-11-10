@@ -63,7 +63,9 @@ The dev server proxies `/backend/*` to `http://127.0.0.1:8000`. Override the tar
 
 ## Windows notes
 
-`scripts/dev.ps1` creates `backend\.venv` and starts Uvicorn plus `npm run dev`. Display code in `backend/app/services/displays/windows.py` is the Win32 path. It has not been executed in the Linux test environment. Playback is not part of this phase, and a future playback window has to run in an interactive user session rather than as a service with no desktop.
+Install Python 3.11+, Node.js 18+, and FFmpeg, then open a new terminal. `scripts/dev.ps1` looks for the `py` launcher and for `python.exe` outside the Microsoft Store alias. It creates `backend\.venv`, installs dependencies, and opens two windows: the API and the dashboard. If the first run happened before Python existed, the script replaces an `.env` whose password is blank.
+
+Display code in `backend/app/services/displays/windows.py` is the Win32 path. It has not been executed in the Linux test environment. Playback is not part of this phase, and a future playback window has to run in an interactive user session rather than as a service with no desktop.
 
 ## CI
 

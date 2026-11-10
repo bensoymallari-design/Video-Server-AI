@@ -34,11 +34,13 @@ Requirements: Python 3.11 or newer, Node.js 22, FFmpeg, and FFprobe. Linux displ
 ./scripts/dev.sh
 ```
 
-On Windows:
+On Windows, install Python 3.11 or newer, Node.js 18 or newer, and FFmpeg first. The command named `python` on a new Windows install is often a Microsoft Store alias and is not Python. Open a new terminal after the installers finish, then run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\dev.ps1
 ```
+
+`winget install Python.Python.3.12`, `winget install OpenJS.NodeJS.LTS`, and `winget install Gyan.FFmpeg` cover those three tools. If `python` still prints "Python was not found", turn off the `python.exe` and `python3.exe` aliases under Settings, Apps, Advanced app settings, App execution aliases.
 
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The API health check is [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health). The first launch writes `.env` and prints the administrator password. That file stays on the machine.
 
