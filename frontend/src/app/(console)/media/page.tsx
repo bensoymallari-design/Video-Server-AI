@@ -3,7 +3,7 @@
 import { DragEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { Section } from "@/components/Panels";
-import { ApiError, api, uploadMedia } from "@/lib/api";
+import { ApiError, api, uploadMedia, type UploadProgress } from "@/lib/api";
 import { bytes, rate, resolution, seconds, when } from "@/lib/format";
 import type { Integrity, MediaAsset, TranscodeJob } from "@/lib/types";
 
@@ -11,7 +11,8 @@ export default function MediaPage() {
   const [items, setItems] = useState<MediaAsset[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [progress, setProgress] = useState<number | null>(null);
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
+  const [busyName, setBusyName] = useState("");
   const [jobs, setJobs] = useState<Record<string, TranscodeJob>>({});
   const [checks, setChecks] = useState<Record<string, Integrity>>({});
   const timers = useRef<number[]>([]);
@@ -33,11 +34,26 @@ export default function MediaPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    const blockNavigation = (event: globalThis.DragEvent) => event.preventDefault();
+    window.addEventListener("dragover", blockNavigation);
+    window.addEventListener("drop", blockNavigation);
+    return () => {
+      window.removeEventListener("dragover", blockNavigation);
+      window.removeEventListener("drop", blockNavigation);
+    };
+  }, []);
+
   async function send(files: File[]) {
+    if (!files.length) {
+      setError("The browser did not hand over a file. Click the box and choose the file from disk.");
+      return;
+    }
     setError("");
     setNotice("");
     for (const file of files) {
-      setProgress(0);
+      setBusyName(file.name);
+      setProgress({ ratio: 0, phase: "sending" });
       try {
         const asset = (await uploadMedia(file, setProgress)) as MediaAsset;
         setNotice(asset.duplicate ? `${file.name} matches an existing file and was not stored again.` : `${file.name} stored.`);
@@ -46,6 +62,7 @@ export default function MediaPage() {
       }
     }
     setProgress(null);
+    setBusyName("");
     load();
   }
 
@@ -123,9 +140,16 @@ export default function MediaPage() {
             void send(files);
           }}
         />
-        {progress != null ? (
-          <div className="mx-auto mt-4 h-2 max-w-md bg-black/50">
-            <div className="h-2 bg-amber" style={{ width: `${Math.round(progress * 100)}%` }} />
+        {progress ? (
+          <div className="mx-auto mt-4 max-w-md text-left">
+            <p className="mb-2 text-xs text-mist">
+              {progress.phase === "sending"
+                ? `Sending ${busyName} · ${Math.round(progress.ratio * 100)}%`
+                : `Reading ${busyName}. The file has arrived and FFprobe is inspecting it.`}
+            </p>
+            <div className="h-2 bg-black/50">
+              <div className="h-2 bg-amber" style={{ width: `${Math.round(progress.ratio * 100)}%` }} />
+            </div>
           </div>
         ) : null}
       </label>

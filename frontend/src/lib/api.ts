@@ -37,14 +37,29 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnAut
   return (await response.json()) as T;
 }
 
-export function uploadMedia(file: File, onProgress: (ratio: number) => void): Promise<unknown> {
+export function apiOrigin(): string {
+  const protocol = window.location.protocol;
+  const port = process.env.NEXT_PUBLIC_API_PORT || "8000";
+  return `${protocol}//${window.location.hostname}:${port}`;
+}
+
+export type UploadProgress = {
+  ratio: number;
+  phase: "sending" | "inspecting";
+};
+
+export function uploadMedia(file: File, onProgress: (progress: UploadProgress) => void): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/backend/media");
+    xhr.open("POST", `${apiOrigin()}/media`);
     xhr.withCredentials = true;
+    xhr.timeout = 10 * 60 * 1000;
     xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) onProgress(event.loaded / event.total);
+      if (event.lengthComputable) {
+        onProgress({ ratio: event.loaded / event.total, phase: "sending" });
+      }
     };
+    xhr.upload.onload = () => onProgress({ ratio: 1, phase: "inspecting" });
     xhr.onload = () => {
       let body: { detail?: string } = {};
       try {
@@ -53,9 +68,11 @@ export function uploadMedia(file: File, onProgress: (ratio: number) => void): Pr
         body = {};
       }
       if (xhr.status >= 200 && xhr.status < 300) resolve(body);
-      else reject(new ApiError(xhr.status, body.detail || xhr.statusText));
+      else reject(new ApiError(xhr.status, body.detail || xhr.statusText || "Upload was rejected"));
     };
-    xhr.onerror = () => reject(new ApiError(0, "Upload failed before the server answered"));
+    xhr.onerror = () =>
+      reject(new ApiError(0, "Upload failed before the server answered. Keep this page on 127.0.0.1 and leave the API window open."));
+    xhr.ontimeout = () => reject(new ApiError(0, "The server took too long to inspect this file."));
     const data = new FormData();
     data.append("file", file);
     xhr.send(data);

@@ -11,6 +11,7 @@ import json
 import logging
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -40,6 +41,25 @@ def tool_available(name: str) -> bool:
     return shutil.which(name) is not None
 
 
+def run_tool(args: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
+    """Run FFmpeg or FFprobe without letting it read the console.
+
+    On Windows a child process inherits the API window's keyboard input.
+    FFmpeg then waits for that input and the upload never finishes.
+    """
+
+    kwargs: dict[str, object] = {
+        "capture_output": True,
+        "text": True,
+        "timeout": timeout,
+        "check": False,
+        "stdin": subprocess.DEVNULL,
+    }
+    if sys.platform == "win32":
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    return subprocess.run(args, **kwargs)  # type: ignore[arg-type]
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -51,7 +71,7 @@ def sha256_file(path: Path) -> str:
 def probe_media(path: Path) -> tuple[ProbeSummary, dict]:
     if not tool_available("ffprobe"):
         raise RuntimeError("ffprobe is not installed")
-    completed = subprocess.run(
+    completed = run_tool(
         [
             "ffprobe",
             "-v",
@@ -62,10 +82,7 @@ def probe_media(path: Path) -> tuple[ProbeSummary, dict]:
             "-show_streams",
             str(path),
         ],
-        capture_output=True,
-        text=True,
         timeout=60,
-        check=False,
     )
     if completed.returncode != 0:
         message = (completed.stderr or "ffprobe failed").strip()
@@ -157,9 +174,10 @@ def write_thumbnail(source: Path, destination: Path) -> None:
     if not tool_available("ffmpeg"):
         raise RuntimeError("ffmpeg is not installed")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    completed = subprocess.run(
+    completed = run_tool(
         [
             "ffmpeg",
+            "-nostdin",
             "-y",
             "-hide_banner",
             "-loglevel",
@@ -169,13 +187,10 @@ def write_thumbnail(source: Path, destination: Path) -> None:
             "-frames:v",
             "1",
             "-vf",
-            "scale=480:-1",
+            "scale=480:-2",
             str(destination),
         ],
-        capture_output=True,
-        text=True,
         timeout=60,
-        check=False,
     )
     if completed.returncode != 0 or not destination.exists() or destination.stat().st_size == 0:
         destination.unlink(missing_ok=True)
@@ -189,6 +204,7 @@ def write_proxy(source: Path, destination: Path, include_audio: bool) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     command = [
         "ffmpeg",
+        "-nostdin",
         "-y",
         "-hide_banner",
         "-loglevel",
@@ -209,13 +225,7 @@ def write_proxy(source: Path, destination: Path, include_audio: bool) -> None:
     else:
         command.append("-an")
     command.extend(["-movflags", "+faststart", str(destination)])
-    completed = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        timeout=600,
-        check=False,
-    )
+    completed = run_tool(command, timeout=600)
     if completed.returncode != 0 or not destination.exists() or destination.stat().st_size == 0:
         destination.unlink(missing_ok=True)
         message = (completed.stderr or "transcode failed").strip()
